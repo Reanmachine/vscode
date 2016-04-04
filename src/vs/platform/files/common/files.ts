@@ -47,6 +47,13 @@ export interface IFileService {
 	updateContent(resource: URI, value: string, options?: IUpdateContentOptions): winjs.TPromise<IFileStat>;
 
 	/**
+	 * Resolve the metadata of a file identified by the resource.
+	 *
+	 * The returned object contains properties of the file and a collection of metadata entries.
+	 */
+	resolveMetadata(resource: URI): winjs.TPromise<IFileMetadata>;
+
+	/**
 	 * Moves the file to a new path identified by the resource.
 	 *
 	 * The optional parameter overwrite can be set to replace an existing file at the location.
@@ -389,6 +396,25 @@ export interface IUpdateContentOptions {
 	 * The etag of the file. This can be used to prevent dirty writes.
 	 */
 	etag?: string;
+}
+
+/**
+ * File metadata information.
+ */
+export interface IFileMetadata extends IBaseStat {
+
+	/**
+	 * The metadata entries for this file.
+	 */
+	entries: IFileMetadataEntry[];
+}
+
+/**
+ * A single peice of file metadata
+ */
+export interface IFileMetadataEntry {
+	name: string;
+	value: string;
 }
 
 export interface IResolveFileOptions {

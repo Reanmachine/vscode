@@ -125,6 +125,12 @@ export class FileService implements files.IFileService {
 		});
 	}
 
+	public resolveMetadata(resource: uri): TPromise<files.IFileMetadata> {
+		return this.raw.then((raw) => {
+			return raw.resolveMetadata(resource);
+		});
+	}
+
 	public moveFile(source: uri, target: uri, overwrite?: boolean): TPromise<files.IFileStat> {
 		return this.raw.then((raw) => {
 			return raw.moveFile(source, target, overwrite);

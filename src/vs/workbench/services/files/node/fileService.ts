@@ -282,6 +282,32 @@ export class FileService implements files.IFileService {
 		});
 	}
 
+	public resolveMetadata(resource: uri) {
+
+		let mockMetadata = {
+			resource: resource,
+			name: 'file.txt',
+			mtime: 123456,
+			etag: etag(12345, 12345),
+			mime: 'text/plain',
+
+			entries: [
+				{
+					name: 'image-dimensions',
+					value: '96x96'
+				},
+				{
+					name: 'image-colorspace',
+					value: '32bpp'
+				}
+			]
+		};
+
+		let asMetadata = <files.IFileMetadata>mockMetadata;
+
+		return TPromise.as<files.IFileMetadata>(asMetadata);
+	}
+
 	public createFile(resource: uri, content: string = ''): TPromise<files.IFileStat> {
 		return this.updateContent(resource, content);
 	}

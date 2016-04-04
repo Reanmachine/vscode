@@ -29,6 +29,7 @@ import {EndOfLineSequence, ITokenizedModel, EditorType, IEditorSelection, ITextM
 import {IndentUsingSpaces, IndentUsingTabs, DetectIndentation, IndentationToSpacesAction, IndentationToTabsAction} from 'vs/editor/contrib/indentation/common/indentation';
 import {EventType, ResourceEvent, EditorEvent, TextEditorSelectionEvent} from 'vs/workbench/common/events';
 import {BaseTextEditor} from 'vs/workbench/browser/parts/editor/textEditor';
+import {BinaryFileEditor} from 'vs/workbench/parts/files/browser/editors/binaryFileEditor';
 import {IEditor as IBaseEditor} from 'vs/platform/editor/common/editor';
 import {IWorkbenchEditorService}  from 'vs/workbench/services/editor/common/editorService';
 import {IQuickOpenService, IPickOpenEntry} from 'vs/workbench/services/quickopen/common/quickOpenService';
@@ -84,6 +85,7 @@ interface IEditorSelectionStatus {
 }
 
 interface IStateChange {
+	metadata: boolean;
 	indentation: boolean;
 	selectionStatus: boolean;
 	mode: boolean;
@@ -93,6 +95,7 @@ interface IStateChange {
 }
 
 interface StateDelta {
+	metadata?: string;
 	selectionStatus?: string;
 	mode?: string;
 	encoding?: string;
@@ -102,6 +105,9 @@ interface StateDelta {
 }
 
 class State {
+	private _metadata: string;
+	public get metadata(): string { return this._metadata; }
+
 	private _selectionStatus: string;
 	public get selectionStatus(): string { return this._selectionStatus; }
 
@@ -121,6 +127,7 @@ class State {
 	public get tabFocusMode(): boolean { return this._tabFocusMode; }
 
 	constructor() {
+		this._metadata = null;
 		this._selectionStatus = null;
 		this._mode = null;
 		this._encoding = null;
@@ -130,6 +137,7 @@ class State {
 
 	public update(update: StateDelta): IStateChange {
 		let e = {
+			metadata: false,
 			selectionStatus: false,
 			mode: false,
 			encoding: false,
@@ -138,6 +146,14 @@ class State {
 			indentation: false
 		};
 		let somethingChanged = false;
+
+		if (typeof update.metadata !== 'undefined') {
+			if (this._metadata !== update.metadata) {
+				this._metadata = update.metadata;
+				somethingChanged = true;
+				e.metadata = true;
+			}
+		}
 
 		if (typeof update.selectionStatus !== 'undefined') {
 			if (this._selectionStatus !== update.selectionStatus) {
@@ -208,6 +224,7 @@ export class EditorStatus implements IStatusbarItem {
 
 	private state: State;
 	private element: HTMLElement;
+	private metadataElement: HTMLElement;
 	private tabFocusModeElement: HTMLElement;
 	private indentationElement: HTMLElement;
 	private selectionElement: HTMLElement;
@@ -230,6 +247,10 @@ export class EditorStatus implements IStatusbarItem {
 
 	public render(container: HTMLElement): IDisposable {
 		this.element = append(container, $('.editor-statusbar-item'));
+
+		this.metadataElement = append(this.element, $('a.editor-status-metadata'));
+		this.metadataElement.title = nls.localize('fileMetadata', "File Metadata");
+		hide(this.metadataElement);
 
 		this.tabFocusModeElement = append(this.element, $('a.editor-status-tabfocusmode'));
 		this.tabFocusModeElement.title = nls.localize('disableTabMode', "Disable Accessibility Mode");
@@ -280,6 +301,15 @@ export class EditorStatus implements IStatusbarItem {
 		if (!changed) {
 			// Nothing really changed
 			return;
+		}
+
+		if (changed.metadata) {
+			if (this.state.metadata) {
+				this.metadataElement.textContent = this.state.metadata;
+				show(this.metadataElement);
+			} else {
+				hide(this.metadataElement);
+			}
 		}
 
 		if (changed.tabFocusMode) {
@@ -395,12 +425,39 @@ export class EditorStatus implements IStatusbarItem {
 	}
 
 	private onEditorInputChange(e: IBaseEditor): void {
+		this.onMetadataChange(e);
 		this.onSelectionChange(e);
 		this.onModeChange(e);
 		this.onEOLChange(e);
 		this.onEncodingChange(e);
 		this.onTabFocusModeChange(e);
 		this.onIndentationChange(e);
+	}
+
+	private onMetadataChange(e: IBaseEditor): void {
+		if (e && !this.isActiveEditor(e)) {
+			return;
+		}
+
+		let info: StateDelta = { mode: null, metadata: null };
+
+		if (e instanceof BinaryFileEditor) {
+			// TODO: This should be replaced with a better way of fetching the
+			//       input/model. Currently here as a placeholder for the POC.
+
+			if (e.input) {
+				(<any>e.input).resolve(false).then((model) => {
+					let metadata = model.getMetadata().entries;
+					info.metadata = metadata.map(x => x.value).join(' | ');
+
+					this.updateState(info);
+				});
+
+				return;
+			}
+		}
+
+		this.updateState(info);
 	}
 
 	private onModeChange(e: IBaseEditor): void {

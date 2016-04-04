@@ -4,7 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
+import {TPromise} from 'vs/base/common/winjs.base';
 import {EditorModel} from 'vs/workbench/common/editor';
+import {IFileService, IFileMetadata} from 'vs/platform/files/common/files';
 import URI from 'vs/base/common/uri';
 
 /**
@@ -13,8 +15,13 @@ import URI from 'vs/base/common/uri';
 export class BinaryEditorModel extends EditorModel {
 	private name: string;
 	private resource: URI;
+	private metadata: IFileMetadata;
 
-	constructor(resource: URI, name: string) {
+	constructor(
+		resource: URI,
+		name: string,
+		@IFileService private fileService: IFileService
+	) {
 		super();
 
 		this.name = name;
@@ -33,5 +40,26 @@ export class BinaryEditorModel extends EditorModel {
 	 */
 	public getResource(): URI {
 		return this.resource;
+	}
+
+	/**
+	 * The metadata of the binary resource.
+	 */
+	public getMetadata(): IFileMetadata {
+		return this.metadata;
+	}
+
+	/**
+	 * Causes this model to load returning a promise when loading is completed.
+	 */
+	public load(): TPromise<EditorModel> {
+		return this
+			.fileService
+			.resolveMetadata(this.getResource())
+			.then((metadata) => {
+				this.metadata = metadata;
+
+				return this;
+			});
 	}
 }
